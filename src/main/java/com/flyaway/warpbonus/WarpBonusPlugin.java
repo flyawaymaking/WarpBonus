@@ -21,7 +21,6 @@ public class WarpBonusPlugin extends JavaPlugin {
 
         // Инициализация менеджера
         this.bonusManager = new WarpBonusManager(this);
-        bonusManager.loadBonusData();
 
         // Регистрация команды
         getCommand("warpbonus").setExecutor(new WarpBonusCommand(bonusManager));
@@ -39,10 +38,6 @@ public class WarpBonusPlugin extends JavaPlugin {
         // Отключаем слушатель событий перед отключением
         if (groupChangeListener != null) {
             groupChangeListener.disable();
-        }
-
-        if (bonusManager != null) {
-            bonusManager.saveBonusData();
         }
         getLogger().info("Плагин WarpBonus отключен!");
     }

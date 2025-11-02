@@ -17,7 +17,6 @@ import java.util.logging.Level;
 
 public class WarpBonusManager {
     private final WarpBonusPlugin plugin;
-    private final Map<UUID, Integer> bonusWarps = new HashMap<>();
     private final File dataFile;
     private LuckPerms luckPerms;
 
@@ -35,19 +34,81 @@ public class WarpBonusManager {
         }
     }
 
+    private int getBonusWarpsFromFile(UUID playerId) {
+        if (!dataFile.exists()) return 0;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(dataFile))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(":");
+                if (parts.length == 2 && parts[0].equals(playerId.toString())) {
+                    return Integer.parseInt(parts[1]);
+                }
+            }
+        } catch (IOException | NumberFormatException e) {
+            plugin.getLogger().log(Level.WARNING, "Ошибка чтения данных для " + playerId, e);
+        }
+        return 0;
+    }
+
+    private void saveBonusWarpsToFile(UUID playerId, int amount) {
+        // Создаем временный файл для безопасной записи
+        File tempFile = new File(dataFile.getParentFile(), "bonus_warps.tmp");
+        Map<UUID, Integer> allData = new HashMap<>();
+
+        // Читаем существующие данные
+        if (dataFile.exists()) {
+            try (BufferedReader reader = new BufferedReader(new FileReader(dataFile))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String[] parts = line.split(":");
+                    if (parts.length == 2) {
+                        allData.put(UUID.fromString(parts[0]), Integer.parseInt(parts[1]));
+                    }
+                }
+            } catch (IOException e) {
+                plugin.getLogger().log(Level.WARNING, "Ошибка чтения файла", e);
+            }
+        }
+
+        // Обновляем данные
+        if (amount > 0) {
+            allData.put(playerId, amount);
+        } else {
+            allData.remove(playerId); // Удаляем если 0
+        }
+
+        // Записываем обратно
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
+            for (Map.Entry<UUID, Integer> entry : allData.entrySet()) {
+                writer.write(entry.getKey().toString() + ":" + entry.getValue());
+                writer.newLine();
+            }
+
+            // Заменяем старый файл новым
+            if (dataFile.exists()) {
+                dataFile.delete();
+            }
+            tempFile.renameTo(dataFile);
+
+        } catch (IOException e) {
+            plugin.getLogger().log(Level.SEVERE, "Ошибка сохранения данных", e);
+            tempFile.delete();
+        }
+    }
+
     public void addBonusWarp(UUID playerId, String playerName) {
         int currentBonus = getBonusWarps(playerId);
         int newBonus = currentBonus + 1;
-        bonusWarps.put(playerId, newBonus);
+        saveBonusWarpsToFile(playerId, newBonus);
 
         updatePlayerPermissions(playerId, playerName);
-        saveBonusData();
 
         plugin.getLogger().info("Добавлен бонусный варп игроку " + playerName + ". Теперь бонусов: " + newBonus);
     }
 
     public int getBonusWarps(UUID playerId) {
-        return bonusWarps.getOrDefault(playerId, 0);
+        return getBonusWarpsFromFile(playerId);
     }
 
     public void updatePlayerPermissions(UUID playerId, String playerName) {
@@ -115,11 +176,6 @@ public class WarpBonusManager {
             maxLimit = Math.max(maxLimit, groupLimit);
         }
 
-        // ВАЖНО: НЕ смотрим на пермишены самого игрока!
-        // Это предотвращает цикл и неправильный расчет
-        // int playerLimit = getWarpLimitFromNodes(user.getNodes()); // УБРАНО!
-        // maxLimit = Math.max(maxLimit, playerLimit); // УБРАНО!
-
         return maxLimit;
     }
 
@@ -160,49 +216,9 @@ public class WarpBonusManager {
         });
     }
 
-    public void loadBonusData() {
-        if (!dataFile.exists()) return;
-
-        try (BufferedReader reader = new BufferedReader(new FileReader(dataFile))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(":");
-                if (parts.length == 2) {
-                    try {
-                        UUID playerId = UUID.fromString(parts[0]);
-                        int bonus = Integer.parseInt(parts[1]);
-                        bonusWarps.put(playerId, bonus);
-                    } catch (IllegalArgumentException e) {
-                        plugin.getLogger().warning("Некорректная строка в файле данных: " + line);
-                    }
-                }
-            }
-            plugin.getLogger().info("Загружено " + bonusWarps.size() + " записей бонусных варпов");
-        } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "Ошибка загрузки данных бонусных варпов", e);
-        }
-    }
-
-    public void saveBonusData() {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(dataFile))) {
-            for (Map.Entry<UUID, Integer> entry : bonusWarps.entrySet()) {
-                writer.write(entry.getKey().toString() + ":" + entry.getValue());
-                writer.newLine();
-            }
-            plugin.getLogger().info("Сохранено " + bonusWarps.size() + " записей бонусных варпов");
-        } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "Ошибка сохранения данных бонусных варпов", e);
-        }
-    }
-
-    public Map<UUID, Integer> getAllBonusWarps() {
-        return new HashMap<>(bonusWarps);
-    }
-
     public void setBonusWarps(UUID playerId, String playerName, int amount) {
-        bonusWarps.put(playerId, amount);
+        saveBonusWarpsToFile(playerId, amount);
         updatePlayerPermissions(playerId, playerName);
-        saveBonusData();
     }
 
     public String getPlayerName(UUID playerId) {
@@ -221,9 +237,21 @@ public class WarpBonusManager {
 
     public Map<String, Integer> getReadableBonusWarps() {
         Map<String, Integer> result = new HashMap<>();
-        for (Map.Entry<UUID, Integer> entry : bonusWarps.entrySet()) {
-            String playerName = getPlayerName(entry.getKey());
-            result.put(playerName, entry.getValue());
+        if (!dataFile.exists()) return result;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(dataFile))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(":");
+                if (parts.length == 2) {
+                    UUID playerId = UUID.fromString(parts[0]);
+                    int bonus = Integer.parseInt(parts[1]);
+                    String playerName = getPlayerName(playerId);
+                    result.put(playerName, bonus);
+                }
+            }
+        } catch (IOException e) {
+            plugin.getLogger().log(Level.WARNING, "Ошибка чтения списка варпов", e);
         }
         return result;
     }
