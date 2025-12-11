@@ -1,6 +1,8 @@
 package com.flyaway.warpbonus;
 
+import net.luckperms.api.LuckPerms;
 import net.luckperms.api.event.EventBus;
+import net.luckperms.api.event.EventSubscription;
 import net.luckperms.api.event.user.track.UserPromoteEvent;
 import net.luckperms.api.event.user.track.UserDemoteEvent;
 import net.luckperms.api.event.node.NodeAddEvent;
@@ -12,12 +14,13 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class GroupChangeListener implements Listener {
     private final WarpBonusManager bonusManager;
-    private final AtomicBoolean enabled = new AtomicBoolean(true);
+    private final List<EventSubscription<?>> subscriptions = new ArrayList<>();
 
     public GroupChangeListener(WarpBonusManager bonusManager) {
         this.bonusManager = bonusManager;
@@ -26,15 +29,14 @@ public class GroupChangeListener implements Listener {
 
     private void registerLuckPermsEvents() {
         try {
-            net.luckperms.api.LuckPerms luckPerms = Bukkit.getServicesManager().load(net.luckperms.api.LuckPerms.class);
+            LuckPerms luckPerms = Bukkit.getServicesManager().load(LuckPerms.class);
             if (luckPerms != null) {
                 EventBus eventBus = luckPerms.getEventBus();
 
-                // Регистрируем обработчики событий
-                eventBus.subscribe(UserPromoteEvent.class, this::onUserPromote);
-                eventBus.subscribe(UserDemoteEvent.class, this::onUserDemote);
-                eventBus.subscribe(NodeAddEvent.class, this::onNodeAdd);
-                eventBus.subscribe(NodeRemoveEvent.class, this::onNodeRemove);
+                subscriptions.add(eventBus.subscribe(UserPromoteEvent.class, this::onUserPromote));
+                subscriptions.add(eventBus.subscribe(UserDemoteEvent.class, this::onUserDemote));
+                subscriptions.add(eventBus.subscribe(NodeAddEvent.class, this::onNodeAdd));
+                subscriptions.add(eventBus.subscribe(NodeRemoveEvent.class, this::onNodeRemove));
 
                 WarpBonusPlugin.getInstance().getLogger().info("LuckPerms события зарегистрированы");
             }
@@ -44,57 +46,50 @@ public class GroupChangeListener implements Listener {
     }
 
     public void disable() {
-        enabled.set(false);
+        for (EventSubscription<?> sub : subscriptions) {
+            try {
+                sub.close();
+            } catch (Exception ignored) {}
+        }
+        subscriptions.clear();
         WarpBonusPlugin.getInstance().getLogger().info("GroupChangeListener отключен");
     }
 
     private void onUserPromote(UserPromoteEvent event) {
-        if (!enabled.get() || !WarpBonusPlugin.getInstance().isEnabled()) return;
         schedulePermissionUpdate(event.getUser());
     }
 
     private void onUserDemote(UserDemoteEvent event) {
-        if (!enabled.get() || !WarpBonusPlugin.getInstance().isEnabled()) return;
         schedulePermissionUpdate(event.getUser());
     }
 
     private void onNodeAdd(NodeAddEvent event) {
-        if (!enabled.get() || !WarpBonusPlugin.getInstance().isEnabled()) return;
-
         // Фильтруем: только добавление родительских групп пользователю
-        if (event.getTarget() instanceof User && event.getNode().getType() == NodeType.INHERITANCE) {
-            User user = (User) event.getTarget();
+        if (event.getTarget() instanceof User user && event.getNode().getType() == NodeType.INHERITANCE) {
             schedulePermissionUpdate(user);
         }
 
         // Фильтруем: только изменения варп-пермишенов в группах (НЕ у пользователей!)
         if (event.getNode().getKey().startsWith("axplayerwarps.warps.") &&
-            event.getTarget() instanceof net.luckperms.api.model.group.Group) {
-            net.luckperms.api.model.group.Group group = (net.luckperms.api.model.group.Group) event.getTarget();
+                event.getTarget() instanceof net.luckperms.api.model.group.Group group) {
             updateAllUsersInGroup(group.getName());
         }
     }
 
     private void onNodeRemove(NodeRemoveEvent event) {
-        if (!enabled.get() || !WarpBonusPlugin.getInstance().isEnabled()) return;
-
         // Фильтруем: только удаление родительских групп у пользователя
-        if (event.getTarget() instanceof User && event.getNode().getType() == NodeType.INHERITANCE) {
-            User user = (User) event.getTarget();
+        if (event.getTarget() instanceof User user && event.getNode().getType() == NodeType.INHERITANCE) {
             schedulePermissionUpdate(user);
         }
 
         // Фильтруем: только изменения варп-пермишенов в группах (НЕ у пользователей!)
         if (event.getNode().getKey().startsWith("axplayerwarps.warps.") &&
-            event.getTarget() instanceof net.luckperms.api.model.group.Group) {
-            net.luckperms.api.model.group.Group group = (net.luckperms.api.model.group.Group) event.getTarget();
+                event.getTarget() instanceof net.luckperms.api.model.group.Group group) {
             updateAllUsersInGroup(group.getName());
         }
     }
 
     private void updateAllUsersInGroup(String groupName) {
-        if (!enabled.get() || !WarpBonusPlugin.getInstance().isEnabled()) return;
-
         Bukkit.getScheduler().runTaskAsynchronously(WarpBonusPlugin.getInstance(), () -> {
             try {
                 net.luckperms.api.LuckPerms luckPerms = Bukkit.getServicesManager().load(net.luckperms.api.LuckPerms.class);
@@ -102,8 +97,6 @@ public class GroupChangeListener implements Listener {
 
                 int updatedCount = 0;
                 for (User user : luckPerms.getUserManager().getLoadedUsers()) {
-                    if (!enabled.get()) return; // Проверяем еще раз перед обработкой каждого пользователя
-
                     if (user.getPrimaryGroup().equals(groupName) ||
                         user.getInheritedGroups(net.luckperms.api.query.QueryOptions.nonContextual())
                             .stream()
@@ -112,12 +105,9 @@ public class GroupChangeListener implements Listener {
                         UUID playerId = user.getUniqueId();
                         String playerName = user.getUsername();
 
-                        if (playerName != null && !playerName.isEmpty() && enabled.get()) {
-                            // Обновляем права пользователя
+                        if (playerName != null && !playerName.isEmpty()) {
                             Bukkit.getScheduler().runTask(WarpBonusPlugin.getInstance(), () -> {
-                                if (enabled.get()) {
-                                    bonusManager.updatePlayerPermissions(playerId, playerName);
-                                }
+                                bonusManager.updatePlayerPermissions(playerId, playerName);
                             });
                             updatedCount++;
                         }
@@ -129,36 +119,28 @@ public class GroupChangeListener implements Listener {
                 }
 
             } catch (Exception e) {
-                if (enabled.get()) {
-                    WarpBonusPlugin.getInstance().getLogger().warning("Ошибка при обновлении пользователей группы " + groupName + ": " + e.getMessage());
-                }
+                WarpBonusPlugin.getInstance().getLogger().warning("Ошибка при обновлении пользователей группы " + groupName + ": " + e.getMessage());
             }
         });
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        if (!enabled.get()) return;
-
         // Обновляем права при входе игрока
         Bukkit.getScheduler().runTaskLater(WarpBonusPlugin.getInstance(), () -> {
-            if (enabled.get()) {
-                UUID playerId = event.getPlayer().getUniqueId();
-                String playerName = event.getPlayer().getName();
-                bonusManager.updatePlayerPermissions(playerId, playerName);
-            }
+            UUID playerId = event.getPlayer().getUniqueId();
+            String playerName = event.getPlayer().getName();
+            bonusManager.updatePlayerPermissions(playerId, playerName);
         }, 20L);
     }
 
     private void schedulePermissionUpdate(User user) {
         Bukkit.getScheduler().runTaskLater(WarpBonusPlugin.getInstance(), () -> {
-            if (enabled.get()) {
-                UUID playerId = user.getUniqueId();
-                String playerName = user.getUsername();
+            UUID playerId = user.getUniqueId();
+            String playerName = user.getUsername();
 
-                if (playerName != null && !playerName.isEmpty()) {
-                    bonusManager.updatePlayerPermissions(playerId, playerName);
-                }
+            if (playerName != null && !playerName.isEmpty()) {
+                bonusManager.updatePlayerPermissions(playerId, playerName);
             }
         }, 20L);
     }

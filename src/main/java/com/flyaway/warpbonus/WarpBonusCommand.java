@@ -96,7 +96,7 @@ public class WarpBonusCommand implements CommandExecutor, TabCompleter {
                     }
                     int currentBonus = bonusManager.getBonusWarps(playerId);
                     int newBonus = currentBonus + amount;
-                    bonusManager.setBonusWarps(playerId, playerName, newBonus);
+                    bonusManager.setBonusWarps(playerId, newBonus);
 
                     String currentPlayerName = bonusManager.getPlayerName(playerId);
                     sender.sendMessage("§aДобавлено §e" + amount + "§a бонусных варпов игроку " + currentPlayerName + ". Теперь: §e" + newBonus);
@@ -110,7 +110,7 @@ public class WarpBonusCommand implements CommandExecutor, TabCompleter {
                 }
             } else {
                 // Добавить 1 варп по умолчанию
-                bonusManager.addBonusWarp(playerId, playerName);
+                bonusManager.addBonusWarp(playerId);
                 int newBonus = bonusManager.getBonusWarps(playerId);
                 String currentPlayerName = bonusManager.getPlayerName(playerId);
                 sender.sendMessage("§aИгроку " + currentPlayerName + " добавлен 1 бонусный варп! Теперь: §e" + newBonus);
@@ -140,7 +140,7 @@ public class WarpBonusCommand implements CommandExecutor, TabCompleter {
                     sender.sendMessage("§cКоличество не может быть отрицательным!");
                     return;
                 }
-                bonusManager.setBonusWarps(playerId, playerName, amount);
+                bonusManager.setBonusWarps(playerId, amount);
                 String currentPlayerName = bonusManager.getPlayerName(playerId);
                 sender.sendMessage("§aУстановлено §e" + amount + "§a бонусных варпов для игрока " + currentPlayerName);
 
@@ -201,10 +201,8 @@ public class WarpBonusCommand implements CommandExecutor, TabCompleter {
         List<String> completions = new ArrayList<>();
 
         if (args.length == 1) {
-            // Подсказки для подкоманд
             completions.addAll(Arrays.asList("add", "set", "check", "list"));
         } else if (args.length == 2 && !args[0].equalsIgnoreCase("list")) {
-            // Подсказки для имен игроков
             String partialName = args[1].toLowerCase();
             for (Player player : Bukkit.getOnlinePlayers()) {
                 if (player.getName().toLowerCase().startsWith(partialName)) {
@@ -212,7 +210,6 @@ public class WarpBonusCommand implements CommandExecutor, TabCompleter {
                 }
             }
         } else if (args.length == 3 && args[0].equalsIgnoreCase("add")) {
-            // Подсказки для количества при добавлении
             completions.add("1");
             completions.add("5");
             completions.add("10");
