@@ -1,4 +1,4 @@
-package com.flyaway.warpbonus;
+package com.flyaway.bonusaxwarp;
 
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.event.EventBus;
@@ -19,10 +19,10 @@ import java.util.List;
 import java.util.UUID;
 
 public class GroupChangeListener implements Listener {
-    private final WarpBonusManager bonusManager;
+    private final BonusWarpManager bonusManager;
     private final List<EventSubscription<?>> subscriptions = new ArrayList<>();
 
-    public GroupChangeListener(WarpBonusManager bonusManager) {
+    public GroupChangeListener(BonusWarpManager bonusManager) {
         this.bonusManager = bonusManager;
         registerLuckPermsEvents();
     }
@@ -38,10 +38,10 @@ public class GroupChangeListener implements Listener {
                 subscriptions.add(eventBus.subscribe(NodeAddEvent.class, this::onNodeAdd));
                 subscriptions.add(eventBus.subscribe(NodeRemoveEvent.class, this::onNodeRemove));
 
-                WarpBonusPlugin.getInstance().getLogger().info("LuckPerms события зарегистрированы");
+                BonusAxWarp.getInstance().getLogger().info("LuckPerms events are registered");
             }
         } catch (Exception e) {
-            WarpBonusPlugin.getInstance().getLogger().warning("Не удалось зарегистрировать LuckPerms события: " + e.getMessage());
+            BonusAxWarp.getInstance().getLogger().warning("Failed to register LuckPerms events: " + e.getMessage());
         }
     }
 
@@ -52,7 +52,7 @@ public class GroupChangeListener implements Listener {
             } catch (Exception ignored) {}
         }
         subscriptions.clear();
-        WarpBonusPlugin.getInstance().getLogger().info("GroupChangeListener отключен");
+        BonusAxWarp.getInstance().getLogger().info("GroupChangeListener disabled");
     }
 
     private void onUserPromote(UserPromoteEvent event) {
@@ -64,12 +64,10 @@ public class GroupChangeListener implements Listener {
     }
 
     private void onNodeAdd(NodeAddEvent event) {
-        // Фильтруем: только добавление родительских групп пользователю
         if (event.getTarget() instanceof User user && event.getNode().getType() == NodeType.INHERITANCE) {
             schedulePermissionUpdate(user);
         }
 
-        // Фильтруем: только изменения варп-пермишенов в группах (НЕ у пользователей!)
         if (event.getNode().getKey().startsWith("axplayerwarps.warps.") &&
                 event.getTarget() instanceof net.luckperms.api.model.group.Group group) {
             updateAllUsersInGroup(group.getName());
@@ -77,12 +75,10 @@ public class GroupChangeListener implements Listener {
     }
 
     private void onNodeRemove(NodeRemoveEvent event) {
-        // Фильтруем: только удаление родительских групп у пользователя
         if (event.getTarget() instanceof User user && event.getNode().getType() == NodeType.INHERITANCE) {
             schedulePermissionUpdate(user);
         }
 
-        // Фильтруем: только изменения варп-пермишенов в группах (НЕ у пользователей!)
         if (event.getNode().getKey().startsWith("axplayerwarps.warps.") &&
                 event.getTarget() instanceof net.luckperms.api.model.group.Group group) {
             updateAllUsersInGroup(group.getName());
@@ -90,7 +86,7 @@ public class GroupChangeListener implements Listener {
     }
 
     private void updateAllUsersInGroup(String groupName) {
-        Bukkit.getScheduler().runTaskAsynchronously(WarpBonusPlugin.getInstance(), () -> {
+        Bukkit.getScheduler().runTaskAsynchronously(BonusAxWarp.getInstance(), () -> {
             try {
                 net.luckperms.api.LuckPerms luckPerms = Bukkit.getServicesManager().load(net.luckperms.api.LuckPerms.class);
                 if (luckPerms == null) return;
@@ -106,7 +102,7 @@ public class GroupChangeListener implements Listener {
                         String playerName = user.getUsername();
 
                         if (playerName != null && !playerName.isEmpty()) {
-                            Bukkit.getScheduler().runTask(WarpBonusPlugin.getInstance(), () -> {
+                            Bukkit.getScheduler().runTask(BonusAxWarp.getInstance(), () -> {
                                 bonusManager.updatePlayerPermissions(playerId, playerName);
                             });
                             updatedCount++;
@@ -115,19 +111,18 @@ public class GroupChangeListener implements Listener {
                 }
 
                 if (updatedCount > 0) {
-                    WarpBonusPlugin.getInstance().getLogger().info("Обновлены варпы для " + updatedCount + " пользователей группы " + groupName);
+                    BonusAxWarp.getInstance().getLogger().info("Warps of " + updatedCount + " users of the " + groupName + " group have been updated.");
                 }
 
             } catch (Exception e) {
-                WarpBonusPlugin.getInstance().getLogger().warning("Ошибка при обновлении пользователей группы " + groupName + ": " + e.getMessage());
+                BonusAxWarp.getInstance().getLogger().warning("Error updating users of the group " + groupName + ": " + e.getMessage());
             }
         });
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        // Обновляем права при входе игрока
-        Bukkit.getScheduler().runTaskLater(WarpBonusPlugin.getInstance(), () -> {
+        Bukkit.getScheduler().runTaskLater(BonusAxWarp.getInstance(), () -> {
             UUID playerId = event.getPlayer().getUniqueId();
             String playerName = event.getPlayer().getName();
             bonusManager.updatePlayerPermissions(playerId, playerName);
@@ -135,7 +130,7 @@ public class GroupChangeListener implements Listener {
     }
 
     private void schedulePermissionUpdate(User user) {
-        Bukkit.getScheduler().runTaskLater(WarpBonusPlugin.getInstance(), () -> {
+        Bukkit.getScheduler().runTaskLater(BonusAxWarp.getInstance(), () -> {
             UUID playerId = user.getUniqueId();
             String playerName = user.getUsername();
 

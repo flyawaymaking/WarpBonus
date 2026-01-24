@@ -1,4 +1,4 @@
-package com.flyaway.warpbonus;
+package com.flyaway.bonusaxwarp;
 
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.model.group.Group;
@@ -19,13 +19,13 @@ import java.io.IOException;
 import java.util.*;
 import java.util.logging.Level;
 
-public class WarpBonusManager {
-    private final WarpBonusPlugin plugin;
+public class BonusWarpManager {
+    private final BonusAxWarp plugin;
     private final File dataFile;
     private FileConfiguration dataConfig;
     private LuckPerms luckPerms;
 
-    public WarpBonusManager(WarpBonusPlugin plugin) {
+    public BonusWarpManager(BonusAxWarp plugin) {
         this.plugin = plugin;
         this.dataFile = new File(plugin.getDataFolder(), "bonus_warps.yml");
 
@@ -54,7 +54,7 @@ public class WarpBonusManager {
         try {
             dataConfig.save(dataFile);
         } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "Не удалось сохранить bonus_warps.yml", e);
+            plugin.getLogger().log(Level.SEVERE, "Couldn't save bonus_warps.yml", e);
         }
     }
 
@@ -77,7 +77,7 @@ public class WarpBonusManager {
         int current = getBonusWarps(playerId);
         int newAmount = current + 1;
         setBonusWarps(playerId, newAmount);
-        plugin.getLogger().info("Добавлен бонусный варп игроку " + playerId + ". Теперь бонусов: " + newAmount);
+        plugin.getLogger().info("Added a bonus warp to the player " + playerId + ". Now for the bonuses: " + newAmount);
     }
 
     public void updatePlayerPermissions(UUID playerId, String playerName) {
@@ -87,7 +87,7 @@ public class WarpBonusManager {
             try {
                 User user = getUser(playerId);
                 if (user == null) {
-                    plugin.getLogger().warning("Не удалось получить пользователя: " + playerName);
+                    plugin.getLogger().warning("Couldn't get the user: " + playerName);
                     return;
                 }
 
@@ -102,13 +102,13 @@ public class WarpBonusManager {
 
                 luckPerms.getUserManager().saveUser(user);
 
-                plugin.getLogger().info("Обновлены права для " + playerName +
-                        " (группа: " + groupLimit + ", бонусы: " + bonus + ", итого: " + totalWarps + ")");
+                plugin.getLogger().info("Updated permissions for " + playerName +
+                        " (group: " + groupLimit + ", bonus: " + bonus + ", result: " + totalWarps + ")");
 
                 updateOnlinePlayer(playerId);
 
             } catch (Exception e) {
-                plugin.getLogger().log(Level.SEVERE, "Ошибка при обновлении прав игрока " + playerName, e);
+                plugin.getLogger().log(Level.SEVERE, "Error updating player's rights " + playerName, e);
             }
         });
     }

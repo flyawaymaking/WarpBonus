@@ -1,4 +1,4 @@
-package com.flyaway.warpbonus;
+package com.flyaway.bonusaxwarp;
 
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -10,10 +10,10 @@ import org.bukkit.entity.Player;
 
 import java.util.*;
 
-public class WarpBonusCommand implements CommandExecutor, TabCompleter {
-    private final WarpBonusManager bonusManager;
+public class BonusAxWarpCommand implements CommandExecutor, TabCompleter {
+    private final BonusWarpManager bonusManager;
 
-    public WarpBonusCommand(WarpBonusManager bonusManager) {
+    public BonusAxWarpCommand(BonusWarpManager bonusManager) {
         this.bonusManager = bonusManager;
     }
 
@@ -34,7 +34,7 @@ public class WarpBonusCommand implements CommandExecutor, TabCompleter {
         switch (subCommand) {
             case "add":
                 if (args.length < 2) {
-                    sender.sendMessage("§cИспользование: /warpbonus add <игрок> [количество]");
+                    sender.sendMessage("§cИспользование: /bonusaxwarp add <игрок> [количество]");
                     return true;
                 }
                 handleAdd(sender, args);
@@ -42,7 +42,7 @@ public class WarpBonusCommand implements CommandExecutor, TabCompleter {
 
             case "set":
                 if (args.length < 3) {
-                    sender.sendMessage("§cИспользование: /warpbonus set <игрок> <количество>");
+                    sender.sendMessage("§cИспользование: /bonusaxwarp set <игрок> <количество>");
                     return true;
                 }
                 handleSet(sender, args);
@@ -50,7 +50,7 @@ public class WarpBonusCommand implements CommandExecutor, TabCompleter {
 
             case "check":
                 if (args.length < 2) {
-                    sender.sendMessage("§cИспользование: /warpbonus check <игрок>");
+                    sender.sendMessage("§cИспользование: /bonusaxwarp check <игрок>");
                     return true;
                 }
                 handleCheck(sender, args);
@@ -69,17 +69,17 @@ public class WarpBonusCommand implements CommandExecutor, TabCompleter {
     }
 
     private void showUsage(CommandSender sender) {
-        sender.sendMessage("§6=== WarpBonus Команды ===");
-        sender.sendMessage("§e/warpbonus add <игрок> [количество] §7- Добавить бонусные варпы");
-        sender.sendMessage("§e/warpbonus set <игрок> <количество> §7- Установить количество бонусных варпов");
-        sender.sendMessage("§e/warpbonus check <игрок> §7- Проверить бонусные варпы игрока");
-        sender.sendMessage("§e/warpbonus list §7- Список всех бонусных варпов");
+        sender.sendMessage("§6=== BonusAxWarp Команды ===");
+        sender.sendMessage("§e/bonusaxwarp add <игрок> [количество] §7- Добавить бонусные варпы");
+        sender.sendMessage("§e/bonusaxwarp set <игрок> <количество> §7- Установить количество бонусных варпов");
+        sender.sendMessage("§e/bonusaxwarp check <игрок> §7- Проверить бонусные варпы игрока");
+        sender.sendMessage("§e/bonusaxwarp list §7- Список всех бонусных варпов");
     }
 
     private void handleAdd(CommandSender sender, String[] args) {
         String playerName = args[1];
 
-        Bukkit.getScheduler().runTaskAsynchronously(WarpBonusPlugin.getInstance(), () -> {
+        Bukkit.getScheduler().runTaskAsynchronously(BonusAxWarp.getInstance(), () -> {
             UUID playerId = getUUIDFromName(playerName);
             if (playerId == null) {
                 sender.sendMessage("§cИгрок " + playerName + " не найден!");
@@ -87,7 +87,6 @@ public class WarpBonusCommand implements CommandExecutor, TabCompleter {
             }
 
             if (args.length >= 3) {
-                // Добавить указанное количество
                 try {
                     int amount = Integer.parseInt(args[2]);
                     if (amount <= 0) {
@@ -109,7 +108,6 @@ public class WarpBonusCommand implements CommandExecutor, TabCompleter {
                     sender.sendMessage("§cНекорректное число!");
                 }
             } else {
-                // Добавить 1 варп по умолчанию
                 bonusManager.addBonusWarp(playerId);
                 int newBonus = bonusManager.getBonusWarps(playerId);
                 String currentPlayerName = bonusManager.getPlayerName(playerId);
@@ -127,7 +125,7 @@ public class WarpBonusCommand implements CommandExecutor, TabCompleter {
         String playerName = args[1];
         String amountStr = args[2];
 
-        Bukkit.getScheduler().runTaskAsynchronously(WarpBonusPlugin.getInstance(), () -> {
+        Bukkit.getScheduler().runTaskAsynchronously(BonusAxWarp.getInstance(), () -> {
             UUID playerId = getUUIDFromName(playerName);
             if (playerId == null) {
                 sender.sendMessage("§cИгрок " + playerName + " не найден!");
@@ -157,7 +155,7 @@ public class WarpBonusCommand implements CommandExecutor, TabCompleter {
     private void handleCheck(CommandSender sender, String[] args) {
         String playerName = args[1];
 
-        Bukkit.getScheduler().runTaskAsynchronously(WarpBonusPlugin.getInstance(), () -> {
+        Bukkit.getScheduler().runTaskAsynchronously(BonusAxWarp.getInstance(), () -> {
             UUID playerId = getUUIDFromName(playerName);
             if (playerId == null) {
                 sender.sendMessage("§cИгрок " + playerName + " не найден!");

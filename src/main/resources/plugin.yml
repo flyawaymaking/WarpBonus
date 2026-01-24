@@ -1,18 +1,19 @@
-name: WarpBonus
-version: 1.1.0
-main: com.flyaway.warpbonus.WarpBonusPlugin
+name: ${name}
+main: ${group}.${name}
+version: ${version}
 api-version: 1.21
 author: FlyAwayMaking
 website: https://github.com/flyawaymaking
 depend: [LuckPerms]
+softdepend: [PlaceholderAPI]
 
 commands:
-  warpbonus:
+  bonusaxwarp:
     description: Управление бонусными варпами игроков
-    usage: /warpbonus <add|set|check|list> [игрок] [количество]
-    permission: warps.bonus.manage
+    usage: /<command> <add|set|check|list> [игрок] [количество]
+  aliases: ['bonuswarp']
 
 permissions:
-  warps.bonus.manage:
+  bonusaxwarp.manage:
     description: Доступ к управлению бонусными варпами
     default: op
