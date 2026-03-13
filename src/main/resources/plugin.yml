@@ -11,7 +11,7 @@ commands:
   bonusaxwarp:
     description: Управление бонусными варпами игроков
     usage: /<command> <add|set|check|list> [игрок] [количество]
-  aliases: ['bonuswarp']
+    aliases: ['bonuswarp']
 
 permissions:
   bonusaxwarp.manage:

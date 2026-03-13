@@ -65,12 +65,17 @@ public class BonusWarpManager {
 
     public void setBonusWarps(UUID playerId, int amount) {
         loadData();
+
         if (amount > 0) {
             dataConfig.set(playerId.toString(), amount);
         } else {
             dataConfig.set(playerId.toString(), null);
         }
+
         saveData();
+
+        String playerName = getPlayerName(playerId);
+        updatePlayerPermissions(playerId, playerName);
     }
 
     public void addBonusWarp(UUID playerId) {
@@ -167,13 +172,10 @@ public class BonusWarpManager {
     }
 
     private void updateOnlinePlayer(UUID playerId) {
-        if (luckPerms == null) return;
-
-        luckPerms.getUserManager().loadUser(playerId).thenAcceptAsync(user -> {
-            if (user != null) {
-                luckPerms.getUserManager().cleanupUser(user);
-            }
-        });
+        Player player = Bukkit.getPlayer(playerId);
+        if (player != null) {
+            Bukkit.getScheduler().runTask(plugin, player::recalculatePermissions);
+        }
     }
 
     public String getPlayerName(UUID playerId) {
